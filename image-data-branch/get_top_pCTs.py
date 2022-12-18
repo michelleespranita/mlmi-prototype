@@ -15,10 +15,10 @@ def create_csv_with_top_pCTs(CT_images_model, dict_from_patient_target_dir_to_im
     csv_rows = []
 
     for patient_target_dir, image_files in tqdm(dict_from_patient_target_dir_to_image_files.items()):
-        X_CT_Valid = np.array([read_ct_img_bydir(os.path.join(patient_target_dir, image_file)) for image_file in image_files])
-        y_CT_Valid = CT_images_model.predict(X_CT_Valid)
+        images = np.array([read_ct_img_bydir(os.path.join(patient_target_dir, image_file)) for image_file in image_files])
+        probs = CT_images_model.predict(images)
 
-        probs_df = pd.DataFrame({"images": image_files, 'NiCT':y_CT_Valid[:,0], 'pCT':y_CT_Valid[:,1], 'nCT':y_CT_Valid[:,2]})
+        probs_df = pd.DataFrame({"images": image_files, 'NiCT':probs[:,0], 'pCT':probs[:,1], 'nCT':probs[:,2]})
 
         # remove all non-informative CTs
         probs_df = probs_df[probs_df['NiCT'] <= invalid_cutoff]
