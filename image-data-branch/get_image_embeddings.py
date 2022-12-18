@@ -1,12 +1,11 @@
 from keras.models import load_model
 
-def get_trained_patient_CNN_model():
-    model_CT = load_model("CT_Morbidity.model")
-    
-    return model_CT
+def get_trained_CT_Morbidity_model():
+    model = load_model("CT_Morbidity.model")
+    return model
 
 def main():
-    model_CT = get_trained_patient_CNN_model()
+    CT_Morbidity_model = get_trained_CT_Morbidity_model()
 
 
 if __name__=="__main__":
