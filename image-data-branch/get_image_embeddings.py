@@ -8,7 +8,7 @@ from tqdm import tqdm
 from get_top_pCTs import read_ct_img_bydir
 
 
-def create_image_embeddings(CT_Morbidity_model_without_linear_layers, dict_from_patient_target_dir_to_top_pCTs):
+def save_image_embeddings(CT_Morbidity_model_without_linear_layers, dict_from_patient_target_dir_to_top_pCTs):
     # list to store the image_embeddings
     image_embeddings = []
 
@@ -28,6 +28,8 @@ def create_image_embeddings(CT_Morbidity_model_without_linear_layers, dict_from_
 
     # image_embeddings of shape (num_patients, 10000)
     image_embeddings = np.stack(image_embeddings)
+
+    np.save("image_embeddings", image_embeddings)
 
 def get_top_pCTs_paths():
     dict_from_patient_target_dir_to_top_pCTs = {}
@@ -67,7 +69,7 @@ def main():
 
     dict_from_patient_target_dir_to_top_pCTs = get_top_pCTs_paths()
 
-    create_image_embeddings(CT_Morbidity_model_without_linear_layers, dict_from_patient_target_dir_to_top_pCTs)
+    save_image_embeddings(CT_Morbidity_model_without_linear_layers, dict_from_patient_target_dir_to_top_pCTs)
 
 
 if __name__=="__main__":
