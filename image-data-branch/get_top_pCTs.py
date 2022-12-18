@@ -44,7 +44,7 @@ def create_csv_with_top_pCTs(CT_images_model, dict_from_patient_target_dir_to_im
     # save the information in a csv file together with a header
     header = ["patient_directory", "top_k_image_files"]
 
-    with open("top_k_images.csv", "w") as fp:
+    with open("top_pCTs.csv", "w") as fp:
         csv_writer = csv.writer(fp)
 
         csv_writer.writerow(header)
