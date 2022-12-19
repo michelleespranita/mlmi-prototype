@@ -2,30 +2,29 @@ import torch
 import torch.nn as nn
 
 from image_data_branch.get_image_embeddings import get_trained_CT_Morbidity_model, remove_linear_layers_from_trained_model
-from tabular_data_branch.dnn import get_tabular_dnn
 from tabular_data_branch.fttransformer import FTTransformer
 from fusion_module.fusiontransformer import FusionModule
 
 class MultimodalModel(nn.Module):
-    def __init__(self, dim=128):
-        super(MultimodalModel, self).__init__()
+    def __init__(self, dim=16):
+        super().__init__()
 
         # Image branch
         # pretrained_image_model = get_trained_CT_Morbidity_model()
         # self.cnn_image_branch = remove_linear_layers_from_trained_model(pretrained_image_model)
         self.mlp_image_branch = nn.Sequential(
-            nn.Linear(10000, dim),
+            nn.Linear(10000, 256),
             nn.ReLU(),
-            nn.Linear(dim, dim)
+            nn.Linear(256, dim)
         )
 
         # Table branch
-        self.dnn_table_branch = get_tabular_dnn()
-        self.mlp_table_branch = nn.Sequential(
-            nn.Linear(16, dim),
-            nn.ReLU(),
-            nn.Linear(dim, dim)
-        )
+        # self.dnn_table_branch = get_tabular_dnn()
+        # self.mlp_table_branch = nn.Sequential(
+        #     nn.Linear(16, dim),
+        #     nn.ReLU(),
+        #     nn.Linear(dim, dim)
+        # )
         # self.table_branch = FTTransformer(
         #     categories = (2, 2),      # Gender and Udis
         #     num_continuous = 125,     # number of continuous values
@@ -38,13 +37,13 @@ class MultimodalModel(nn.Module):
         # )
 
         # Fusion Module
-        self.fusion_module = FusionModule(dim=dim, num_classes=1)
+        self.fusion_module = FusionModule(dim=dim, num_classes=3)
 
         # Freeze pre-trained models
         # for param in self.cnn_image_branch.parameters():
         #     param.requires_grad = False
-        for param in self.dnn_table_branch.parameters():
-            param.requires_grad = False
+        # for param in self.dnn_table_branch.parameters():
+        #     param.requires_grad = False
 
     
     def forward(self, x_image, x_table):
@@ -54,11 +53,11 @@ class MultimodalModel(nn.Module):
         '''
         batch_size = x_image.shape[0]
 
-        out_image = self.mlp_image_branch(x_image)
+        out_image = self.mlp_image_branch(x_image.to(torch.float32))
         out_image = out_image[:, None, :]
-        # out_image = self.mlp_image_branch(self.cnn_image_branch(x_image)) # Shape: (b, dim=128)
-        out_table = self.mlp_table_branch(self.dnn_table_branch(x_table)) # Shape: (b, 16)
-        out_table = out_table[:, None, :]
+        out_table = x_table[:, None, :]
+        # out_table = self.mlp_table_branch(self.dnn_table_branch(x_table)) # Shape: (b, 16)
+        # out_table = out_table[:, None, :]
         # out_table = self.table_branch(x_table[0], x_table[1]) # Shape: (b, num_table_features, dim=128) # FTTransformer
 
         num_img_tokens = out_image.shape[1]

@@ -3,12 +3,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from keras.models import load_model
+from keras.models import load_model, Model
 
 import pandas as pd
 
+def get_pretrained_keras_model():
+    return load_model("./CF_Mortality.model")
+
 def get_pretrained_weights_from_keras_model():
-    keras_dnn = load_model("tabular_data_branch/CF_Mortality.model")
+    keras_dnn = load_model("./CF_Mortality.model")
     keras_dnn_weights = keras_dnn.get_weights()
     return keras_dnn_weights
 
@@ -41,9 +44,14 @@ class DNN(nn.Module):
 #         x = self.dropout_50(x)
 #         return F.softmax(self.output(x))
 
+
+def get_tabular_keras_dnn():
+    keras_pretrained_model = get_pretrained_keras_model()
+    return Model(inputs=keras_pretrained_model.input, outputs=keras_pretrained_model.layers[-2].output)
+
 ## Transfer pre-trained weights from Keras model to PyTorch
 
-def get_tabular_dnn():
+def get_tabular_pytorch_dnn():
     keras_dnn_weights = get_pretrained_weights_from_keras_model()
 
     pytorch_dnn = DNN(128)
