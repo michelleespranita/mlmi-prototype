@@ -1,8 +1,11 @@
 import torch
 import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import roc_auc_score, confusion_matrix, matthews_corrcoef
 
 def train(model, train_dataloader, val_dataloader, device, config):
+    train_logger = SummaryWriter()
+
     history = {"val_acc": [], "val_auc": [], "val_sn": [], "val_sp": [], "val_ppv": [], "val_npv": [], "val_mcc": []}
 
     loss_criterion = nn.BCELoss()
@@ -20,7 +23,6 @@ def train(model, train_dataloader, val_dataloader, device, config):
             pred = model(batch["image"], batch["table"])
             loss = loss_criterion(pred, batch["label"].to(torch.float32))
             
-            
             loss.backward()
             optimizer.step()
 
@@ -29,6 +31,7 @@ def train(model, train_dataloader, val_dataloader, device, config):
 
             if iteration % config['print_every_n'] == (config['print_every_n'] - 1):
                 print(f'[{epoch:03d}/{i:05d}] train_loss: {train_loss_running / config["print_every_n"]:.3f}')
+                train_logger.add_scalar("train_loss", train_loss_running / config["print_every_n"], iteration)
                 train_loss_running = 0.
             
             # ----- VALIDATION -----
@@ -46,7 +49,7 @@ def train(model, train_dataloader, val_dataloader, device, config):
 
                     predicted_label = (pred>0.5).float()
 
-                    val_gt_labels.append(batch_val['label'])
+                    val_gt_labels.append(batch_val['label'].to(torch.float32))
                     val_pred_labels.append(predicted_label)
 
                     total += predicted_label.shape[0]
@@ -72,6 +75,14 @@ def train(model, train_dataloader, val_dataloader, device, config):
                 history["val_npv"].append(npv)
                 history["val_mcc"].append(mcc)
 
+                train_logger.add_scalar("val_acc", accuracy, iteration)
+                train_logger.add_scalar("val_auc", roc_auc, iteration)
+                train_logger.add_scalar("val_sn", sn, iteration)
+                train_logger.add_scalar("val_sp", sp, iteration)
+                train_logger.add_scalar("val_ppv", ppv, iteration)
+                train_logger.add_scalar("val_npv", npv, iteration)
+                train_logger.add_scalar("val_mcc", mcc, iteration)
+
                 print(f'[{epoch:03d}/{i:05d}] val_loss: {loss_total_val / len(val_dataloader):.3f}, val_accuracy: {accuracy:.3f}%, val_roc_auc: {roc_auc}')
 
                 if roc_auc > best_roc_auc:
@@ -87,5 +98,7 @@ def train(model, train_dataloader, val_dataloader, device, config):
     history["val_ppv"] = torch.mean(torch.Tensor(history["val_ppv"])).item()
     history["val_npv"] = torch.mean(torch.Tensor(history["val_npv"])).item()
     history["val_mcc"] = torch.mean(torch.Tensor(history["val_mcc"])).item()
+
+    train_logger.close()
 
     return history
