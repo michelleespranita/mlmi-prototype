@@ -57,7 +57,7 @@ def read_ct_img_bydir(target_dir):
     return img
 
 
-def download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_images_model, patients, is_train_val):
+def download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_images_model, patients):
     url_template = "https://ngdc.cncb.ac.cn/ictcf/patient/CT/Patient%20{}.zip"
     download_path = "/Users/timtanida/Downloads/"
 
@@ -109,10 +109,7 @@ def download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_image
     image_embeddings = np.stack(image_embeddings)
 
     print(f"Image embedding size: {image_embeddings.size}")
-
-    file_name = "image_embeddings_train_val" if is_train_val else "image_embeddings_test"
-
-    np.save(file_name, image_embeddings)
+    np.save("image_embeddings_full_dataset", image_embeddings)
 
     print(f"Failed to download patients: {patient_failed_to_download}")
 
@@ -134,8 +131,7 @@ def get_trained_CT_images_model():
 
 
 def get_patients():
-    train_val_patients_from_cohort_1 = []
-    test_patients_from_cohort_2 = []
+    patient_numbers = []
     patient_str = "Patient "
 
     with open("matt_metadata_norm_morbidity.csv") as csv_file:
@@ -148,24 +144,19 @@ def get_patients():
             patient = row[0]  # e.g. "Patient 123"
             patient_number = patient[len(patient_str):]  # e.g. "123"
 
-            # cohort 1 ends at Patient 1170
-            if int(patient_number) <= 1170:
-                train_val_patients_from_cohort_1.append(patient_number)
-            else:
-                test_patients_from_cohort_2.append(patient_number)
+            patient_numbers.append(patient_number)
 
-    return train_val_patients_from_cohort_1, test_patients_from_cohort_2
+    return patient_numbers
 
 
 def main():
-    train_val_patients_from_cohort_1, test_patients_from_cohort_2 = get_patients()
+    patient_numbers = get_patients()
 
     CT_images_model = get_trained_CT_images_model()
     CT_Morbidity_model = get_trained_CT_Morbidity_model()
     CT_Morbidity_model_without_linear_layers = remove_linear_layers_from_trained_model(CT_Morbidity_model)
 
-    download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_images_model, train_val_patients_from_cohort_1, is_train_val=True)
-    download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_images_model, test_patients_from_cohort_2, is_train_val=False)
+    download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_images_model, patient_numbers)
 
 if __name__=="__main__":
     main()
