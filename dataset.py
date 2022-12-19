@@ -7,7 +7,7 @@ from image_data_branch.get_top_pCTs import get_trained_CT_images_model, get_imag
 from image_data_branch.get_image_embeddings import get_top_pCTs_paths, save_image_embeddings
 
 class ImageTableDataset(Dataset):
-    def __init__(self, split, image_filename="image_data_branch/image_embeddings_morbidity_test.npy", table_filename="tabular_data_branch/tabular_embeddings_morbidity_end.npy",
+    def __init__(self, split, image_filename="image_data_branch/image_embeddings_morbidity.npy", table_filename="tabular_data_branch/tabular_embeddings_morbidity_end.npy",
                 label_filename="tabular_data_branch/matt_metadata_norm_morbidity.csv"):
 
         # ----- Image data -----
