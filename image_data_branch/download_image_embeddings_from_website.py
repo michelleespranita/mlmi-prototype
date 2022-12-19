@@ -56,10 +56,9 @@ def read_ct_img_bydir(target_dir):
     img = cv2.resize(img, (200, 200))
     return img
 
-
 def download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_images_model, patients):
     url_template = "https://ngdc.cncb.ac.cn/ictcf/patient/CT/Patient%20{}.zip"
-    download_path = "/Users/timtanida/Downloads/"
+    download_path = "/Users/michelleespranita/Downloads/"
 
     patient_failed_to_download = []
 
@@ -79,7 +78,7 @@ def download_image_embeddings(CT_Morbidity_model_without_linear_layers, CT_image
 
         # wait until the zip file has been downloaded
         while not os.path.exists(zip_file_path):
-            time.sleep(5)
+            time.sleep(100)
 
         # extract the zip file
         with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:

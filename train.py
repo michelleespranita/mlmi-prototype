@@ -1,12 +1,20 @@
+import math
+import os
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
-from sklearn.metrics import roc_auc_score, confusion_matrix, matthews_corrcoef, recall_score, precision_score
+from sklearn.metrics import roc_auc_score, confusion_matrix, matthews_corrcoef, recall_score, precision_score, roc_curve, auc
 
 def train(model, train_dataloader, val_dataloader, device, config):
     train_logger = SummaryWriter()
+    num_classes = 3
 
-    history = {"val_acc": [], "val_auc": [], "val_sn": [], "val_sp": [], "val_ppv": [], "val_npv": [], "val_mcc": []}
+    metrics = ["val_auc", "val_sn", "val_sp"]
+    history = {}
+    for label in range(num_classes):
+        for metric in metrics:
+            history[f"{metric}_{label}"] = []
+    history["val_acc"] = []
 
     loss_criterion = nn.CrossEntropyLoss()
     loss_criterion.to(device)
@@ -16,7 +24,7 @@ def train(model, train_dataloader, val_dataloader, device, config):
     model.train()
 
     train_loss_running = 0.
-    best_accuracy = 0.
+    best_val_loss = math.inf
 
     for epoch in range(config["max_epochs"]):
         for i, batch in enumerate(train_dataloader):
@@ -62,57 +70,34 @@ def train(model, train_dataloader, val_dataloader, device, config):
                     loss_total_val += loss_criterion(pred, batch_val['label'].long())
 
                 # Calculate metrics
+                # Accuracy
                 accuracy = 100 * correct / total
-                # roc_auc = roc_auc_score(torch.cat(val_gt_labels), torch.cat(val_pred_labels), multi_class='ovr')
-                # sn = recall_score(torch.cat(val_gt_labels), torch.cat(val_pred_labels), average=None)
-                # # sp = tn / (tn + fp)
-                # ppv = precision_score(torch.cat(val_gt_labels), torch.cat(val_pred_labels), average=None)
-                # # npv = tn / (tn + fn)
-                # mcc = matthews_corrcoef(torch.cat(val_gt_labels), torch.cat(val_pred_labels))
-
-                # accuracy = 100 * correct / total
-                # roc_auc = roc_auc_score(torch.cat(val_gt_labels), torch.cat(val_pred_labels))
-                # tn, fp, fn, tp = confusion_matrix(torch.cat(val_gt_labels), torch.cat(val_pred_labels)).ravel()
-                # sn = tp / (tp + fn)
-                # sp = tn / (tn + fp)
-                # ppv = tp / (tp + fp)
-                # npv = tn / (tn + fn)
-                # mcc = matthews_corrcoef(torch.cat(val_gt_labels), torch.cat(val_pred_labels))
-
                 history["val_acc"].append(accuracy)
-                # history["val_auc"].append(roc_auc)
-                # history["val_sn"].append(sn)
-                # # history["val_sp"].append(sp)
-                # history["val_ppv"].append(ppv)
-                # # history["val_npv"].append(npv)
-                # history["val_mcc"].append(mcc)
-
                 train_logger.add_scalar("val_acc", accuracy, iteration)
-                # train_logger.add_scalar("val_auc", roc_auc, iteration)
-                # train_logger.add_scalar("val_sn", sn, iteration)
-                # # train_logger.add_scalar("val_sp", sp, iteration)
-                # train_logger.add_scalar("val_ppv", ppv, iteration)
-                # # train_logger.add_scalar("val_npv", npv, iteration)
-                # train_logger.add_scalar("val_mcc", mcc, iteration)
 
-                print(f'[{epoch:03d}/{i:05d}] val_loss: {loss_total_val / len(val_dataloader):.3f}, val_accuracy: {accuracy:.3f}%')
+                # AUC, Recall, Precision for each class
+                sn = recall_score(torch.cat(val_gt_labels), torch.cat(val_pred_labels), average=None)
+                sp = precision_score(torch.cat(val_gt_labels), torch.cat(val_pred_labels), average=None)
+                for label in range(num_classes):
+                    fpr, tpr, thresholds = roc_curve(torch.cat(val_gt_labels), torch.cat(val_pred_labels), pos_label = label) 
+                    auroc = round(auc(fpr, tpr), 2)
+                    history[f"val_auc_{label}"].append(auroc)
+                    history[f"val_sn_{label}"].append(sn[label])
+                    history[f"val_sp_{label}"].append(sp[label])
+                    train_logger.add_scalar(f"val_auc_{label}", auroc, iteration)
+                    train_logger.add_scalar(f"val_sn_{label}", sn[label], iteration)
+                    train_logger.add_scalar(f"val_sp_{label}", sp[label], iteration)
+
+                val_loss = loss_total_val / len(val_dataloader)
+                train_logger.add_scalar("val_loss", val_loss, iteration)
+                print(f'[{epoch:03d}/{i:05d}] val_loss: {val_loss:.3f}, val_accuracy: {accuracy:.3f}%')
                 
-                if accuracy > best_accuracy:
-                    torch.save(model.state_dict(), f'checkpoints/{config["experiment_name"]}')
-                    best_accuracy = accuracy
-                # if roc_auc > best_roc_auc:
-                #     torch.save(model.state_dict(), f'checkpoints/{config["experiment_name"]}')
-                #     best_roc_auc = roc_auc
+                if val_loss < best_val_loss:
+                    os.makedirs(f'checkpoints/{config["experiment_name"]}', exist_ok=True)
+                    torch.save(model.state_dict(), f'checkpoints/{config["experiment_name"]}/best_model.ckpt')
+                    best_val_loss = val_loss
 
                 model.train()
-
-    history["val_acc"] = torch.mean(torch.Tensor(history["val_acc"])).item()
-    # history["val_auc"] = torch.mean(torch.Tensor(history["val_auc"])).item()
-    # history["val_sn"] = torch.mean(torch.Tensor(history["val_sn"])).item()
-    # # history["val_sp"] = torch.mean(torch.Tensor(history["val_sp"])).item()
-    # history["val_ppv"] = torch.mean(torch.Tensor(history["val_ppv"])).item()
-    # # history["val_npv"] = torch.mean(torch.Tensor(history["val_npv"])).item()
-    # history["val_mcc"] = torch.mean(torch.Tensor(history["val_mcc"])).item()
 
     train_logger.close()
 
