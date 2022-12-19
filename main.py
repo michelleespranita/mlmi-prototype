@@ -8,23 +8,28 @@ from model import MultimodalModel
 from train import train
 
 # ----- Dataset -----
-batch_size = 16
+print("Loading datasets...")
 
-train_dataset = ImageTableDataset("train")
+batch_size = 2
+
+train_dataset = ImageTableDataset("train", table_filename="tabular_data_branch/temp.csv")
 # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-val_dataset = ImageTableDataset("val")
+val_dataset = ImageTableDataset("val", table_filename="tabular_data_branch/temp.csv")
 # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
 dataset = ConcatDataset([train_dataset, val_dataset])
+labels = [dataset[i]['label'] for i in range(len(dataset))]
 
-k = 10
+k = 2
 splits = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
 
 # ----- Model -----
+print("Creating model...")
 model = MultimodalModel()
 
 # ----- Training -----
+print("Start training...")
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 config = {
     "learning_rate": 0.001,
@@ -34,8 +39,8 @@ config = {
     "experiment_name": "baseline"
 }
 
-results = {"val_acc": [], "val_auc": []}
-for fold, (train_idx, val_idx) in enumerate(splits.split(np.arange(len(dataset)))):
+results = {"val_acc": [], "val_auc": [], "val_sn": [], "val_sp": [], "val_ppv": [], "val_npv": [], "val_mcc": []}
+for fold, (train_idx, val_idx) in enumerate(splits.split(dataset, labels)):
     print('Fold {}'.format(fold + 1))
 
     train_sampler = SubsetRandomSampler(train_idx)
@@ -46,6 +51,16 @@ for fold, (train_idx, val_idx) in enumerate(splits.split(np.arange(len(dataset))
     history = train(model, train_dataloader, val_dataloader, device, config)
     results["val_acc"].append(history["val_acc"])
     results["val_auc"].append(history["val_auc"])
+    results["val_sn"].append(history["val_sn"])
+    results["val_sp"].append(history["val_sp"])
+    results["val_ppv"].append(history["val_ppv"])
+    results["val_npv"].append(history["val_npv"])
+    results["val_mcc"].append(history["val_mcc"])
 
-print("Validation accuracy:", torch.mean(results["val_acc"]).item())
-print("Validation AUC:", torch.mean(results["val_auc"]).item())
+print("Validation accuracy:", torch.mean(torch.Tensor(results["val_acc"])).item())
+print("Validation AUC:", torch.mean(torch.Tensor(results["val_auc"])).item())
+print("Validation SN (Recall):", torch.mean(torch.Tensor(results["val_sn"])).item())
+print("Validation SP (Specificity):", torch.mean(torch.Tensor(results["val_sp"])).item())
+print("Validation PPV:", torch.mean(torch.Tensor(results["val_ppv"])).item())
+print("Validation NPV:", torch.mean(torch.Tensor(results["val_npv"])).item())
+print("Validation MCC:", torch.mean(torch.Tensor(results["val_mcc"])).item())

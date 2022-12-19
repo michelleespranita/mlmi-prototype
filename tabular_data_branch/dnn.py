@@ -8,7 +8,7 @@ from keras.models import load_model
 import pandas as pd
 
 def get_pretrained_weights_from_keras_model():
-    keras_dnn = load_model("CF_Mortality.model")
+    keras_dnn = load_model("tabular_data_branch/CF_Mortality.model")
     keras_dnn_weights = keras_dnn.get_weights()
     return keras_dnn_weights
 

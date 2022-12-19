@@ -5,7 +5,7 @@ import numpy as np
 from keras.models import load_model, Model
 from tqdm import tqdm
 
-from get_top_pCTs import read_ct_img_bydir
+from image_data_branch.get_top_pCTs import read_ct_img_bydir
 
 
 def save_image_embeddings(CT_Morbidity_model_without_linear_layers, dict_from_patient_target_dir_to_top_pCTs):

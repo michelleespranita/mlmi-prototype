@@ -53,18 +53,23 @@ class MultimodalModel(nn.Module):
         x_table: [x_cat, x_cont]
         '''
         batch_size = x_image.shape[0]
-        num_img_tokens = x_image.shape[1]
-        num_table_tokens = x_table.shape[1]
 
         out_image = self.mlp_image_branch(x_image)
+        out_image = out_image[:, None, :]
         # out_image = self.mlp_image_branch(self.cnn_image_branch(x_image)) # Shape: (b, dim=128)
-        out_table = self.mlp_table_branch(self.dnn_table_branch(torch.cat(x_table, dim=0).squeeze())) # Shape: (b, 16)
+        out_table = self.mlp_table_branch(self.dnn_table_branch(x_table)) # Shape: (b, 16)
+        out_table = out_table[:, None, :]
         # out_table = self.table_branch(x_table[0], x_table[1]) # Shape: (b, num_table_features, dim=128) # FTTransformer
 
-        image_table_embeddings = torch.cat((out_image, out_table), dim=1)
-        token_type_ids = torch.tensor(torch.cat([torch.zeros(batch_size, num_img_tokens), torch.ones(batch_size,num_table_tokens)], axis=-1), dtype=torch.int32)
-        position_ids = torch.tensor([list(range(num_img_tokens)) + list(range(num_table_tokens)) for i in range(batch_size)], dtype=torch.int32)
+        num_img_tokens = out_image.shape[1]
+        num_table_tokens = out_table.shape[1]
+
+        image_table_embeddings = torch.cat((out_image, out_table), dim=1) # Concatenate in the token dimension
+        # token_type_ids = torch.tensor(torch.cat([torch.zeros(batch_size, num_img_tokens), torch.ones(batch_size, num_table_tokens)], dim=1), dtype=torch.int32)
+        token_type_ids = torch.cat([torch.zeros(batch_size, num_img_tokens), torch.ones(batch_size, num_table_tokens)], dim=1).clone().to(torch.int32)
+        # position_ids = torch.tensor([list(range(num_img_tokens)) + list(range(num_table_tokens)) for i in range(batch_size)], dtype=torch.int32)
+        position_ids = torch.as_tensor([list(range(num_img_tokens)) + list(range(num_table_tokens)) for i in range(batch_size)], dtype=torch.int32)
 
         pred = self.fusion_module(image_table_embeddings, token_type_ids, position_ids)
 
-        return pred
+        return pred.squeeze()
